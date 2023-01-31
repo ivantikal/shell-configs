@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# vim: tabstop=2 shiftwidth=2 expandtab
+
+set -e   # set -o errexit
+set -u   # set -o nounset
+set -o pipefail
+# [ "x${DEBUG:-}" = "x" ] || set -x
+[ "${DEBUG:-}" = "" ] || set -x
+
+__dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+__script="${__dir}/$(basename "${BASH_SOURCE[0]}")"
+__start_dir=$(pwd)
+
+function ShowUsage
+{
+    echo "Usage: $0 -v version -b build_number -a arifacts_dir"
+}
+
+function ShowUsage {
+    cat <<EOF
+
+Usage:
+    ${__script} --version {version} --save-image-folder {path to folder} --upload-image-to-port {port}
+
+Where:
+    --version
+        Version of the docker image. Default is "0.0.0"
+    --save-image-folder
+        Path to folder where the image will be saved as tar.gz.
+        If the parameter is defined - tar.gz will be created.
+    --upload-image-to-port
+        Port of target docker image on our nexus server.
+        If the parameter is defined - corresponding tag will be created and will be pushed.
+
+EOF
+}
+
+VER=
+BUILD=
+ARTIFACTS=
+while getopts a:v:b:h o
+do  case "$o" in
+  v)  VER="$OPTARG";;
+  b)  BUILD="$OPTARG";;
+  a)  ARTIFACTS="$OPTARG";;
+  [?] | h) ShowUsage ; exit 1;;
+  esac
+done
+
+if [[ -z "${VER}" || -z "${BUILD}" || -z "${ARTIFACTS}" ]]; then
+  ShowUsage
+  exit 1
+fi
+
+######
+MASTER_BRANCH=
+BUILD_BRANCH=
+BUILD_VERSION=
+TO_MERGE=0
+
+if [[ "$1" =~ ^((-h)|(--help))$ ]]; then
+  ShowUsage;
+  exit 1;
+fi
+
+while [[ $# -gt 0 ]]; do
+    opt="$1"
+    shift;
+    case "$opt" in
+      "--master-branch" )   MASTER_BRANCH="$1";
+                            echo "MASTER_BRANCH=${MASTER_BRANCH}";
+                            [[ $# -gt 0 ]] && shift;
+                            ;;
+      "--branch"        )   BUILD_BRANCH="$1";
+                            echo "BUILD_BRANCH=${BUILD_BRANCH}";
+                            [[ $# -gt 0 ]] && shift;
+                            ;;
+      "--build-version" )   BUILD_VERSION="${1:-}";
+                            echo "BUILD_VERSION=${BUILD_VERSION}";
+                            [[ $# -gt 0 ]] && shift;
+                            ;;
+      "--merge"         )   TO_MERGE=1;
+                            ;;
+      *                   ) echo "ERROR: Invalid option: \""$opt"\"";
+                            ShowUsage;
+                            exit 1;
+                            ;;
+    esac
+done
+echo "TO_MERGE=${TO_MERGE}"
+if [[ -z "${MASTER_BRANCH}" || -z "${BUILD_BRANCH}" || -z "${BUILD_VERSION}" ]]; then
+    printf "\nERROR: Not all parameters are defined\n\n"
+    ShowUsage;
+    exit 1;
+fi
+######
+
+
+filename="blabla"
+patt="^#.*"
+while read -r line
+do
+    ## ignore commented strings (started with #)
+    [[ $line =~ $patt ]] && continue
+
+    # read to multiple variables
+    IFS=$'\:' read vGroup vArtifact vVersion vExtention vTarget vAction<<<"$line"
+
+    # another example:
+    IFS='\:' read -a myarray <<< "$line"
+    echo "IP: ${myarray[0]}"
+
+    name="$line"
+    echo "Name read from file - $name"
+done < "$filename"
+
+## find file recursively
+shopt -s globstar
+for i in **/file.txt
+do
+    echo ${i}
+done
